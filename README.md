@@ -1,6 +1,6 @@
-# Yip Kin Fung — personal introduction
+# Walker Yip — personal introduction
 
-A single-page introduction for Yip Kin Fung, taken from the approved CV. It is a personal introduction only. It is not a job board and it does not take work requests.
+A single-page introduction for Walker Yip, taken from the approved CV. It is a personal introduction only. It is not a job board and it does not take work requests.
 
 ## Preview locally
 
@@ -26,4 +26,4 @@ If the repository is later made public, GitHub Pages can serve `index.html` and 
 - `styles.css` — layout, including a print style
 - `favicon.svg` — typographic mark (initials only; there is no portrait)
 
-Name, phone, and email are the CV header details, linked with `tel:` and `mailto:`. Employment wording, skills, and education follow the CV and are not extended with extra tools, employers, or profile links.
+The name on the page is Walker Yip. Email is the contact link. Employment wording, skills, and education follow the CV and are not extended with extra tools, employers, or profile links.
