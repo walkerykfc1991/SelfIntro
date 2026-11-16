@@ -222,6 +222,11 @@ address {
   transform: translateY(-2px);
 }
 
+.sep {
+  margin: 0 0.55rem;
+  color: var(--muted);
+}
+
 .section {
   margin-top: 5.25rem;
   scroll-margin-top: 5.5rem;
