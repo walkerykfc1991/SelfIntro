@@ -26,4 +26,4 @@ If the repository is later made public, GitHub Pages can serve `index.html` and 
 - `styles.css` — layout, including a print style
 - `favicon.svg` — typographic mark (initials only; there is no portrait)
 
-The name on the page is Walker Yip. Email is the contact link. Employment wording, skills, and education follow the CV and are not extended with extra tools, employers, or profile links.
+The name on the page is Walker Yip. Email is the contact link. Employment wording and skills follow the CV and are not extended with extra tools, employers, or profile links.

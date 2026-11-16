@@ -19,7 +19,6 @@
           <li><a href="#summary">Summary</a></li>
           <li><a href="#employment">Employment</a></li>
           <li><a href="#skills">Skills</a></li>
-          <li><a href="#education">Education</a></li>
         </ul>
       </nav>
     </div>
@@ -142,24 +141,6 @@
           </div>
         </dl>
       </section>
-
-      <section class="section" id="education" aria-labelledby="education-heading">
-        <h2 id="education-heading">Education</h2>
-        <article class="education">
-          <div class="edu-head">
-            <h3>The Open University of Hong Kong</h3>
-            <p class="dates">2012–2013</p>
-          </div>
-          <p>Bachelor of Science with Honours in Web Technologies</p>
-        </article>
-        <article class="education">
-          <div class="edu-head">
-            <h3>Hong Kong Institute of Vocational Education</h3>
-            <p class="dates">2008–2012</p>
-          </div>
-          <p>Higher Diploma in Computer Systems Administration</p>
-        </article>
-      </section>
     </main>
 
     <footer class="site-footer">
@@ -169,5 +150,30 @@
       </p>
     </footer>
   </div>
+  <script>
+    (function () {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      if (!("IntersectionObserver" in window)) return;
+      document.documentElement.classList.add("motion");
+      var sections = document.querySelectorAll(".section");
+      var observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          observer.unobserve(entry.target);
+        });
+      }, { rootMargin: "0px 0px -6% 0px", threshold: 0.05 });
+      sections.forEach(function (section) {
+        var rect = section.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 0.92 && rect.bottom > 0) {
+          window.requestAnimationFrame(function () {
+            section.classList.add("is-visible");
+          });
+        } else {
+          observer.observe(section);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>
