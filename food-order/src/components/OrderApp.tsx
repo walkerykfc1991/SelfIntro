@@ -89,7 +89,7 @@ function OrderShell() {
           {viewer && (
             <p className="viewer-line">
               你好，{viewer.name}
-              {viewer.simulated ? "（本機模擬登入）" : ""}
+              {viewer.simulated ? "（示範模式 · 未接 Cursor 登入）" : ""}
             </p>
           )}
         </div>

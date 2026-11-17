@@ -9,8 +9,12 @@ if (url === "" || files.length === 0) {
   console.log("migrate: nothing to do");
   process.exit(0);
 }
+const connectionString = process.env.DATABASE_URL_UNPOOLED?.trim() || url;
 const client = new pg.Client({
-  connectionString: process.env.DATABASE_URL_UNPOOLED?.trim() || url,
+  connectionString,
+  ssl: connectionString.includes("localhost")
+    ? undefined
+    : { rejectUnauthorized: false },
 });
 await client.connect();
 try {
@@ -38,6 +42,7 @@ try {
       throw error;
     }
   }
+  console.log("migrate: up to date");
 } finally {
   await client.end();
 }
