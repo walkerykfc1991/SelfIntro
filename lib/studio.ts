@@ -17,6 +17,8 @@ import { createSculpture, type Mesh, type SculptureMeshes } from "@/lib/plate-me
 import { ringMatrix, rodMatrix, shellMatrix, writeFins, writeMatrix } from "@/lib/sculpture";
 import {
   BLIT_FRAG,
+  CUBE_FRAG,
+  CUBE_VERT,
   FIELD_FRAG,
   FULLSCREEN_VERT,
   LEGACY_FRAG,
@@ -26,6 +28,17 @@ import {
   SHADOW_FRAG,
   SHADOW_VERT,
 } from "@/lib/studio-shaders";
+import {
+  CUBE_MAX_H,
+  CUBE_MIN_H,
+  createLattice,
+  createUnitCube,
+  projectToGround,
+  stepLattice,
+  wavePose,
+  type WaveLattice,
+  type WavePose,
+} from "@/lib/wave-cubes";
 
 type Spring = { x: number; v: number };
 type Material = { color: Vec3; rough: number; metal: number; polish: number };
@@ -455,19 +468,73 @@ function destroyTargets(gl: WebGL2RenderingContext, targets: Targets | null) {
 
 type Piece = { mesh: GlMesh; material: Material };
 
+type CubeGpu = {
+  vao: WebGLVertexArrayObject;
+  instanceBuffer: WebGLBuffer;
+  indexCount: number;
+  indexType: number;
+  instances: number;
+  buffers: WebGLBuffer[];
+};
+
+function uploadCubeGpu(gl: WebGL2RenderingContext, mesh: Mesh, lattice: WaveLattice): CubeGpu | null {
+  const vao = gl.createVertexArray();
+  const position = gl.createBuffer();
+  const normal = gl.createBuffer();
+  const index = gl.createBuffer();
+  const instance = gl.createBuffer();
+  if (!vao || !position || !normal || !index || !instance) return null;
+
+  gl.bindVertexArray(vao);
+  gl.bindBuffer(gl.ARRAY_BUFFER, position);
+  gl.bufferData(gl.ARRAY_BUFFER, mesh.positions, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, normal);
+  gl.bufferData(gl.ARRAY_BUFFER, mesh.normals, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(1);
+  gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, instance);
+  gl.bufferData(gl.ARRAY_BUFFER, lattice.instances, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(2);
+  gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 0, 0);
+  gl.vertexAttribDivisor(2, 1);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, mesh.indices, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);
+
+  return {
+    vao,
+    instanceBuffer: instance,
+    indexCount: mesh.indices.length,
+    indexType: mesh.indexType === "u32" ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT,
+    instances: lattice.count,
+    buffers: [position, normal, index, instance],
+  };
+}
+
+function releaseCubeGpu(gl: WebGL2RenderingContext, gpu: CubeGpu) {
+  gl.deleteVertexArray(gpu.vao);
+  for (const buffer of gpu.buffers) gl.deleteBuffer(buffer);
+}
+
 export function mountStudio(canvas: HTMLCanvasElement): () => void {
   const coarse = !prefersFinePointer();
   const gl = canvas.getContext("webgl2", {
     alpha: false,
     antialias: false,
-    depth: false,
+    depth: true,
     stencil: false,
     powerPreference: coarse ? "low-power" : "high-performance",
   });
   if (!gl) return mountLegacyField(canvas);
 
+  const cubeProgram = link(gl, CUBE_VERT, CUBE_FRAG);
   const field = link(gl, FULLSCREEN_VERT, FIELD_FRAG);
-  if (!field) return () => {};
+  if (!cubeProgram && !field) return () => {};
   const meshProgram = link(gl, MESH_VERT, MESH_FRAG);
   const shadowProgram = link(gl, SHADOW_VERT, SHADOW_FRAG);
   const blitProgram = link(gl, FULLSCREEN_VERT, BLIT_FRAG);
@@ -526,18 +593,36 @@ export function mountStudio(canvas: HTMLCanvasElement): () => void {
   }
 
   const maxSamples = gl.getParameter(gl.MAX_SAMPLES) as number;
-  const wantedSamples = software ? 1 : Math.min(maxSamples, coarse ? 2 : 4);
+  const wantedSamples = software ? 1 : Math.min(maxSamples, 2);
   let targets: Targets | null = null;
 
-  const fieldLoc = {
-    resolution: gl.getUniformLocation(field, "uResolution"),
-    time: gl.getUniformLocation(field, "uTime"),
-    pointer: gl.getUniformLocation(field, "uPointer"),
-    scroll: gl.getUniformLocation(field, "uScroll"),
-    amp: gl.getUniformLocation(field, "uAmp"),
-    focus: gl.getUniformLocation(field, "uFocus"),
-    focusAmt: gl.getUniformLocation(field, "uFocusAmt"),
-  };
+  const fieldLoc = field
+    ? {
+        resolution: gl.getUniformLocation(field, "uResolution"),
+        time: gl.getUniformLocation(field, "uTime"),
+        pointer: gl.getUniformLocation(field, "uPointer"),
+        scroll: gl.getUniformLocation(field, "uScroll"),
+        amp: gl.getUniformLocation(field, "uAmp"),
+        focus: gl.getUniformLocation(field, "uFocus"),
+        focusAmt: gl.getUniformLocation(field, "uFocusAmt"),
+      }
+    : null;
+  const cubeGeometry = cubeProgram ? createUnitCube() : null;
+  let pose: WavePose | null = null;
+  let lattice: WaveLattice | null = null;
+  let cubeGpu: CubeGpu | null = null;
+  const cubeLoc = cubeProgram
+    ? {
+        viewProj: gl.getUniformLocation(cubeProgram, "uViewProj"),
+        size: gl.getUniformLocation(cubeProgram, "uSize"),
+        minH: gl.getUniformLocation(cubeProgram, "uMinH"),
+        maxH: gl.getUniformLocation(cubeProgram, "uMaxH"),
+        resolution: gl.getUniformLocation(cubeProgram, "uResolution"),
+        camera: gl.getUniformLocation(cubeProgram, "uCamera"),
+        focus: gl.getUniformLocation(cubeProgram, "uFocus"),
+        focusAmt: gl.getUniformLocation(cubeProgram, "uFocusAmt"),
+      }
+    : null;
   const meshLoc = meshProgram
     ? {
         viewProj: gl.getUniformLocation(meshProgram, "uViewProj"),
@@ -584,12 +669,76 @@ export function mountStudio(canvas: HTMLCanvasElement): () => void {
     gl.drawElementsInstanced(gl.TRIANGLES, piece.mesh.indexCount, piece.mesh.indexType, 0, piece.mesh.instances);
   };
 
+  const rebuildCubes = (aspect: number) => {
+    if (cubeGpu) {
+      releaseCubeGpu(gl, cubeGpu);
+      cubeGpu = null;
+    }
+    if (!cubeProgram || !cubeGeometry || !cubeLoc) return;
+    pose = wavePose(aspect);
+    lattice = createLattice(pose, coarse || software);
+    cubeGpu = uploadCubeGpu(gl, cubeGeometry, lattice);
+  };
+
+  const drawWave = (state: LoopState, exposure: number, shiftX: number, shiftY: number): boolean => {
+    if (!cubeProgram || !cubeLoc || !cubeGpu || !lattice || !pose) return false;
+    const aspect = state.width / Math.max(state.height, 1);
+    const ndcX = (state.pointerX / Math.max(window.innerWidth, 1) - 0.5) * 2;
+    const ndcY = (0.5 - state.pointerY / Math.max(window.innerHeight, 1)) * 2;
+    const hit = projectToGround(pose, aspect, ndcX, ndcY);
+    const originX = window.innerWidth * 0.62;
+    const originY = window.innerHeight * 0.42;
+    const moved = Math.hypot(state.pointerX - originX, state.pointerY - originY) > 12;
+    stepLattice(lattice, {
+      time: state.time,
+      scroll: state.scroll,
+      dt: state.dt,
+      frozen: state.frozen,
+      disturb: !moved || !hit ? 0 : 1,
+      pointerX: hit ? hit[0] : 0,
+      pointerZ: hit ? hit[2] : 0,
+    });
+    gl.bindBuffer(gl.ARRAY_BUFFER, cubeGpu.instanceBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, lattice.instances);
+
+    const viewProj = mat4Mul(mat4Perspective(pose.fov, aspect, 0.12, 96), mat4LookAt(pose.eye, pose.look, [0, 1, 0]));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, state.width, state.height);
+    gl.clearColor(0.0353, 0.0392, 0.0314, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthMask(true);
+    gl.depthFunc(gl.LEQUAL);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
+    gl.frontFace(gl.CCW);
+    gl.disable(gl.BLEND);
+    gl.useProgram(cubeProgram);
+    gl.uniformMatrix4fv(cubeLoc.viewProj, false, viewProj);
+    gl.uniform1f(cubeLoc.size, lattice.size);
+    gl.uniform1f(cubeLoc.minH, CUBE_MIN_H);
+    gl.uniform1f(cubeLoc.maxH, CUBE_MAX_H);
+    gl.uniform2f(cubeLoc.resolution, state.width, state.height);
+    gl.uniform3f(cubeLoc.camera, pose.eye[0], pose.eye[1], pose.eye[2]);
+    gl.uniform2f(cubeLoc.focus, shiftX * 0.5 + 0.5, shiftY * 0.5 + 0.5);
+    gl.uniform1f(cubeLoc.focusAmt, sculpture ? exposure : 0);
+    gl.bindVertexArray(cubeGpu.vao);
+    gl.drawElementsInstanced(gl.TRIANGLES, cubeGpu.indexCount, cubeGpu.indexType, 0, cubeGpu.instances);
+    gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.CULL_FACE);
+    return true;
+  };
+
   return runLoop(canvas, {
     still: prefersReducedMotion() || saveDataOn() || software,
     coarse,
-    resize: resizeTargets,
+    resize: (width, height) => {
+      resizeTargets(width, height);
+      rebuildCubes(width / Math.max(height, 1));
+    },
     dispose: () => {
       destroyTargets(gl, targets);
+      if (cubeGpu) releaseCubeGpu(gl, cubeGpu);
       for (const piece of pieces) {
         gl.deleteVertexArray(piece.mesh.vao);
         for (const buffer of piece.mesh.buffers) gl.deleteBuffer(buffer);
@@ -600,7 +749,8 @@ export function mountStudio(canvas: HTMLCanvasElement): () => void {
       }
       gl.deleteVertexArray(fullscreenVao);
       gl.deleteBuffer(fullscreenBuffer);
-      gl.deleteProgram(field);
+      if (field) gl.deleteProgram(field);
+      if (cubeProgram) gl.deleteProgram(cubeProgram);
       if (meshProgram) gl.deleteProgram(meshProgram);
       if (shadowProgram) gl.deleteProgram(shadowProgram);
       if (blitProgram) gl.deleteProgram(blitProgram);
@@ -617,21 +767,29 @@ export function mountStudio(canvas: HTMLCanvasElement): () => void {
       const scale = (wide ? (roomy ? 0.84 : 0.74) : 0.2) * (1 - smoothstep(0.35, 1.55, scroll) * (wide ? 0.3 : 0));
       const idle = state.frozen ? 0 : Math.sin(state.time * 0.33) * 0.045;
 
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, state.width, state.height);
-      gl.disable(gl.DEPTH_TEST);
-      gl.disable(gl.BLEND);
-      gl.disable(gl.CULL_FACE);
-      gl.useProgram(field);
-      gl.uniform2f(fieldLoc.resolution, state.width, state.height);
-      gl.uniform1f(fieldLoc.time, state.time);
-      gl.uniform2f(fieldLoc.pointer, state.pointerX * state.dpr, state.pointerY * state.dpr);
-      gl.uniform1f(fieldLoc.scroll, scroll);
-      gl.uniform1f(fieldLoc.amp, state.frozen ? 0 : 1);
-      gl.uniform2f(fieldLoc.focus, shiftX * 0.5 + 0.5, shiftY * 0.5 + 0.5);
-      gl.uniform1f(fieldLoc.focusAmt, sculpture ? exposure : 0);
-      gl.bindVertexArray(fullscreenVao);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
+      const drewWave = drawWave(state, exposure, shiftX, shiftY);
+      if (!drewWave && field && fieldLoc && fullscreenVao) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, state.width, state.height);
+        gl.disable(gl.DEPTH_TEST);
+        gl.disable(gl.BLEND);
+        gl.disable(gl.CULL_FACE);
+        gl.useProgram(field);
+        gl.uniform2f(fieldLoc.resolution, state.width, state.height);
+        gl.uniform1f(fieldLoc.time, state.time);
+        gl.uniform2f(fieldLoc.pointer, state.pointerX * state.dpr, state.pointerY * state.dpr);
+        gl.uniform1f(fieldLoc.scroll, scroll);
+        gl.uniform1f(fieldLoc.amp, state.frozen ? 0 : 1);
+        gl.uniform2f(fieldLoc.focus, shiftX * 0.5 + 0.5, shiftY * 0.5 + 0.5);
+        gl.uniform1f(fieldLoc.focusAmt, sculpture ? exposure : 0);
+        gl.bindVertexArray(fullscreenVao);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      } else if (!drewWave) {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, state.width, state.height);
+        gl.clearColor(0.0353, 0.0392, 0.0314, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+      }
 
       if (!sculpture || !targets || !meshProgram || !meshLoc || !shadowProgram || !shadowLoc || !blitProgram || !shadow || !fins || !ring || exposure <= 0.004) {
         return;

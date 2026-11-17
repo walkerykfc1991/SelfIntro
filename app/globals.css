@@ -40,10 +40,14 @@ html {
 body {
   margin: 0;
   min-height: 100svh;
-  background:
+  background-color: var(--bg);
+  background-image:
     radial-gradient(920px 540px at 10% -8%, rgba(230, 255, 77, 0.07), transparent 58%),
     radial-gradient(680px 420px at 108% 0%, rgba(239, 236, 228, 0.05), transparent 52%),
-    var(--bg);
+    linear-gradient(rgba(239, 236, 228, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(239, 236, 228, 0.045) 1px, transparent 1px);
+  background-size: auto, auto, 42px 42px, 42px 42px;
+  background-repeat: no-repeat, no-repeat, repeat, repeat;
   color: var(--mute);
   font-family: var(--font-sans);
   font-size: 1.0625rem;

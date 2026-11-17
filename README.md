@@ -2,7 +2,7 @@
 
 A single-page introduction for Walker Yip, taken from the approved CV. It is a personal introduction only. It is not a job board and it does not take work requests.
 
-The page is a static Next.js export: scroll-sequenced typography, a pointer-reactive WebGL field, and a procedurally modelled metal still life in the hero. The employment history, summary, and skills are the existing English CV text.
+The page is a static Next.js export: scroll-sequenced typography, a pointer-reactive cubic wave, and a procedurally modelled metal still life in the hero. The employment history, summary, and skills are the existing English CV text.
 
 ## Preview locally
 
@@ -54,13 +54,13 @@ The build workflow (`.github/workflows/pages.yml`) runs the production build, th
 
 ## Stack
 
-Next.js 15, React 19, TypeScript 5, and Tailwind CSS 4. Motion uses GSAP ScrollTrigger and Lenis. The background is a WebGL contour field. The hero adds an original still life — a bent plate, three fins, a rod, and a ring — generated in code and shaded with custom metal lighting. No external model or texture is used.
+Next.js 15, React 19, TypeScript 5, and Tailwind CSS 4. Motion uses GSAP ScrollTrigger and Lenis. The background is an instanced array of cubes generated in code. Their heights follow a traveling wave; the pointer swells and ripples nearby columns, and scroll shifts the wave's phase. The hero adds an original still life — a bent plate, three fins, a rod, and a ring — shaded with custom metal lighting. No external model or texture is used.
 
 ## Reduced motion and small screens
 
 If the visitor prefers reduced motion, Lenis, the custom cursor, the pinned summary, and the animated field stay off. The summary, employment history, and skills remain in normal document order.
 
-The pinned summary runs on a fine pointer at a large viewport. Touch and narrow screens keep native scrolling and a stacked layout. The WebGL field and the hero still life drop their frame rate on small screens and freeze to a still frame if a frame budget is missed, the renderer is software, or data-saver is on. Reduced motion keeps that still frame and skips the animated camera. If WebGL is unavailable, the CSS background remains. The still life fades out through the summary so the employment history stays typographic.
+The pinned summary runs on a fine pointer at a large viewport. Touch and narrow screens keep native scrolling and a stacked layout. The cubic wave and the hero still life drop their frame rate on coarse pointers and freeze to a still frame if a frame budget is missed, the renderer is software, or data-saver is on. Reduced motion keeps that still frame and skips the animated camera. A pointer can still raise nearby cubes in the still, without the traveling wave. If WebGL is unavailable, the CSS background remains. The still life fades out through the summary so the employment history stays typographic.
 
 ## Content rules
 
