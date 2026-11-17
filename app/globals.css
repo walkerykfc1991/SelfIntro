@@ -759,23 +759,6 @@ html.is-sequenced .summary-rule span {
   color: var(--signal);
 }
 
-.scope {
-  display: none;
-  height: 9.5rem;
-  border: 1px solid rgba(239, 236, 228, 0.14);
-  background: rgba(9, 10, 8, 0.55);
-}
-
-.skills.is-enhanced .scope {
-  display: block;
-}
-
-.scope canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
 .skill-panel {
   padding-top: 1.15rem;
   border-top: 1px solid rgba(239, 236, 228, 0.12);
@@ -937,7 +920,6 @@ main:focus {
   .corners,
   .site-header,
   .scroll-cue,
-  .scope,
   .dial,
   .career-meter,
   .summary-rule,
