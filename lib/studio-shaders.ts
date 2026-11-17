@@ -1,4 +1,4 @@
-/** Original shaders for the page field and the hero still life. */
+/** Original shaders for the cubic wave field and the hero still life. */
 
 export const FULLSCREEN_VERT = `#version 300 es
 layout(location = 0) in vec2 aPos;
@@ -6,6 +6,106 @@ out vec2 vUv;
 void main() {
   vUv = aPos * 0.5 + 0.5;
   gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+export const CUBE_VERT = `#version 300 es
+layout(location = 0) in vec3 aPos;
+layout(location = 1) in vec3 aNormal;
+layout(location = 2) in vec4 aInst;
+
+uniform mat4 uViewProj;
+uniform float uSize;
+uniform float uMinH;
+uniform float uMaxH;
+
+out vec3 vWorld;
+out vec3 vNormal;
+out vec3 vLocal;
+out float vHeight;
+flat out float vSeed;
+
+void main() {
+  float h = clamp(aInst.z, 0.0, 1.0);
+  float rise = mix(uMinH, uMaxH, h);
+  vec3 local = vec3(aPos.x * uSize, aPos.y * rise, aPos.z * uSize);
+  vec3 world = vec3(aInst.x, 0.0, aInst.y) + local;
+  vWorld = world;
+  vNormal = aNormal;
+  vLocal = aPos;
+  vHeight = h;
+  vSeed = aInst.w;
+  gl_Position = uViewProj * vec4(world, 1.0);
+}
+`;
+
+export const CUBE_FRAG = `#version 300 es
+precision highp float;
+
+in vec3 vWorld;
+in vec3 vNormal;
+in vec3 vLocal;
+in float vHeight;
+flat in float vSeed;
+
+uniform vec2 uResolution;
+uniform vec3 uCamera;
+uniform vec2 uFocus;
+uniform float uFocusAmt;
+
+out vec4 fragColor;
+
+void main() {
+  vec3 bg = vec3(0.0353, 0.0392, 0.0314);
+  vec3 bone = vec3(0.91, 0.89, 0.82);
+  vec3 lime = vec3(0.90, 1.0, 0.36);
+  vec3 iron = vec3(0.15, 0.145, 0.125);
+
+  vec3 N = normalize(vNormal);
+  float cap = step(0.65, N.y);
+  vec2 edge = abs(vLocal.xz);
+  float bevel = smoothstep(0.18, 0.5, max(edge.x, edge.y));
+  N = normalize(mix(N, normalize(vec3(vLocal.x, 0.38, vLocal.z)), bevel * cap));
+
+  vec3 V = normalize(uCamera - vWorld);
+  vec3 keyL = normalize(vec3(-0.42, 0.9, 0.3));
+  vec3 fillL = normalize(vec3(0.55, 0.28, 0.62));
+  vec3 H = normalize(keyL + V);
+  float ndl = max(dot(N, keyL), 0.0);
+  float fill = max(dot(N, fillL), 0.0);
+  float ndv = max(dot(N, V), 0.02);
+  float spec = pow(max(dot(N, H), 0.0), 20.0);
+  float h = clamp(vHeight, 0.0, 1.0);
+  float top = smoothstep(0.42, 0.96, N.y);
+  float body = mix(0.38, 1.0, smoothstep(0.0, 0.34, vLocal.y));
+
+  float crest = smoothstep(0.55, 1.0, h);
+  vec3 col = iron * (0.12 + ndl * 0.4 + fill * 0.12);
+  col += bone * top * (0.03 + crest * 0.34);
+  col += bone * spec * top * crest * 0.08;
+  col += lime * top * smoothstep(0.86, 1.0, h) * 0.2;
+  col += bone * pow(1.0 - ndv, 2.8) * top * 0.045;
+  col *= body * (0.9 + vSeed * 0.1);
+
+  float dist = length(vWorld - uCamera);
+  col = mix(col, bg, smoothstep(8.0, 22.0, dist) * 0.48);
+
+  vec2 suv = gl_FragCoord.xy / uResolution;
+  float aspect = uResolution.x / max(uResolution.y, 1.0);
+  vec2 vig = suv - 0.5;
+  vig.x *= aspect;
+  col = mix(col, bg, smoothstep(0.55, 1.35, length(vig)) * 0.32);
+
+  float focus = length((suv - uFocus) * vec2(aspect, 1.0));
+  float pocket = mix(1.0, smoothstep(0.06, 0.5, focus), uFocusAmt);
+  col = mix(bg, col, mix(0.5, 1.0, pocket));
+
+  float typeCalm = smoothstep(0.92, 0.18, suv.y) * 0.12;
+  col = mix(col, bg, typeCalm);
+
+  float dither = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+  col += (dither - 0.5) / 255.0;
+  fragColor = vec4(max(col, 0.0), 1.0);
 }
 `;
 
@@ -18,7 +118,6 @@ uniform float uScroll;
 uniform float uAmp;
 uniform vec2 uFocus;
 uniform float uFocusAmt;
-in vec2 vUv;
 out vec4 fragColor;
 
 float hash(vec2 p) {
@@ -27,65 +126,49 @@ float hash(vec2 p) {
   return fract(p.x * p.y);
 }
 
-float noise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
-
-float fbm(vec2 p) {
-  float v = 0.0;
-  float a = 0.5;
-  mat2 m = mat2(0.80, 0.60, -0.60, 0.80);
-  for (int i = 0; i < 4; i++) {
-    v += a * noise(p);
-    p = m * p * 2.02;
-    a *= 0.5;
-  }
-  return v;
+float cellWave(vec2 id, float phase) {
+  float a = sin(id.x * 0.62 + id.y * 0.18 - phase);
+  float b = sin(id.y * 0.54 - id.x * 0.2 + phase * 0.64);
+  float c = sin((id.x + id.y) * 0.37 + phase * 0.4);
+  return clamp(0.5 + (a * 0.58 + b * 0.46 + c * 0.22) * 0.34, 0.0, 1.0);
 }
 
 void main() {
+  vec3 bg = vec3(0.0353, 0.0392, 0.0314);
+  vec3 bone = vec3(0.91, 0.89, 0.82);
+  vec3 lime = vec3(0.90, 1.0, 0.36);
   vec2 frag = gl_FragCoord.xy;
   float aspect = uResolution.x / max(uResolution.y, 1.0);
-  vec2 uv = frag / uResolution.y;
-  vec2 pointer = vec2(uPointer.x, uResolution.y - uPointer.y) / uResolution.y;
-  float t = uTime * 0.045 * uAmp;
-  vec2 p = uv + vec2(uScroll * 0.12, -uScroll * 0.04);
-  vec2 delta = p - pointer;
-  float influence = exp(-dot(delta, delta) * 3.2) * 0.28 * uAmp;
-  p += normalize(delta + 0.0001) * influence;
-
-  vec2 q = vec2(
-    fbm(p + vec2(t, -t * 0.6)),
-    fbm(p + vec2(5.2, 1.3) - t)
-  );
-  float f = fbm(p + 1.8 * q);
-  float bands = abs(fract(f * 7.0 + q.x * 0.35) - 0.5);
-  float line = smoothstep(0.085, 0.012, bands);
-  float ridge = smoothstep(0.45, 0.95, f);
-
+  vec2 uv = (frag / uResolution - 0.5) * vec2(aspect, 1.0);
+  float phase = uTime * 0.68 * uAmp + uScroll * 1.2;
+  vec2 p = vec2(uv.x * 6.6, uv.y * 7.4);
+  vec2 pointer = vec2((uPointer.x / uResolution.x - 0.5) * aspect, 0.5 - uPointer.y / uResolution.y) * vec2(6.6, 7.4);
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float swell = exp(-dot(p - pointer, p - pointer) * 0.38) * 0.9 * uAmp;
+  float h = clamp(cellWave(id, phase) + swell, 0.0, 1.0);
+  vec2 q = f - 0.5;
+  float gap = 0.15;
+  float inside = step(abs(q.x), 0.5 - gap) * step(abs(q.y), 0.5 - gap);
+  float front = step(q.y, -0.16 + (1.0 - h) * 0.1);
+  float side = step(0.2, q.x);
+  float top = inside * (1.0 - front);
+  float sideM = inside * front * side;
+  float frontM = inside * front * (1.0 - side);
+  vec3 iron = vec3(0.11, 0.105, 0.09);
+  vec3 col = bg;
+  col = mix(col, iron * (0.7 + h * 0.45), frontM);
+  col = mix(col, iron * (0.9 + h * 0.35), sideM);
+  col = mix(col, mix(iron * 1.2, bone * 0.42, h), top);
+  col += lime * top * smoothstep(0.78, 1.0, h) * 0.3;
   vec2 fragUv = frag / uResolution;
   float focus = length((fragUv - uFocus) * vec2(aspect, 1.0));
-  float clear = mix(1.0, smoothstep(0.06, 0.5, focus), uFocusAmt);
-
-  vec3 bone = vec3(0.91, 0.89, 0.82);
-  vec3 signal = vec3(0.90, 1.0, 0.36);
-  vec3 base = vec3(0.035, 0.039, 0.031);
-  vec3 col = base;
-  col += bone * line * 0.20 * mix(0.58, 1.0, clear);
-  col += signal * line * ridge * 0.16 * mix(0.45, 1.0, clear);
-
-  vec2 vignetteUv = fragUv - 0.5;
-  vignetteUv.x *= aspect;
-  float vignette = smoothstep(1.15, 0.2, length(vignetteUv));
-  col *= mix(0.42, 1.0, vignette);
-  col += (hash(frag + fract(uTime) * 17.0) - 0.5) * 0.028;
+  float clear = mix(1.0, smoothstep(0.05, 0.48, focus), uFocusAmt);
+  col = mix(bg, col, mix(0.5, 1.0, clear));
+  vec2 vig = fragUv - 0.5;
+  vig.x *= aspect;
+  col *= mix(0.5, 1.0, smoothstep(1.15, 0.2, length(vig)));
+  col += (hash(frag + fract(uTime) * 13.0) - 0.5) * 0.02;
   fragColor = vec4(col, 1.0);
 }
 `;
@@ -312,61 +395,45 @@ float hash(vec2 p) {
   return fract(p.x * p.y);
 }
 
-float noise(vec2 p) {
-  vec2 i = floor(p);
-  vec2 f = fract(p);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
-  vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
-}
-
-float fbm(vec2 p) {
-  float v = 0.0;
-  float a = 0.5;
-  mat2 m = mat2(0.80, 0.60, -0.60, 0.80);
-  for (int i = 0; i < 4; i++) {
-    v += a * noise(p);
-    p = m * p * 2.02;
-    a *= 0.5;
-  }
-  return v;
+float cellWave(vec2 id, float phase) {
+  float a = sin(id.x * 0.62 + id.y * 0.18 - phase);
+  float b = sin(id.y * 0.54 - id.x * 0.2 + phase * 0.64);
+  float c = sin((id.x + id.y) * 0.37 + phase * 0.4);
+  return clamp(0.5 + (a * 0.58 + b * 0.46 + c * 0.22) * 0.34, 0.0, 1.0);
 }
 
 void main() {
+  vec3 bg = vec3(0.0353, 0.0392, 0.0314);
+  vec3 bone = vec3(0.91, 0.89, 0.82);
+  vec3 lime = vec3(0.90, 1.0, 0.36);
   vec2 frag = gl_FragCoord.xy;
   float aspect = uResolution.x / max(uResolution.y, 1.0);
-  vec2 uv = frag / uResolution.y;
-  vec2 pointer = vec2(uPointer.x, uResolution.y - uPointer.y) / uResolution.y;
-  float t = uTime * 0.045 * uAmp;
-  vec2 p = uv + vec2(uScroll * 0.12, -uScroll * 0.04);
-  vec2 delta = p - pointer;
-  float influence = exp(-dot(delta, delta) * 3.2) * 0.42 * uAmp;
-  p += normalize(delta + 0.0001) * influence;
-
-  vec2 q = vec2(
-    fbm(p + vec2(t, -t * 0.6)),
-    fbm(p + vec2(5.2, 1.3) - t)
-  );
-  float f = fbm(p + 1.8 * q);
-  float bands = abs(fract(f * 7.0 + q.x * 0.35) - 0.5);
-  float line = smoothstep(0.085, 0.012, bands);
-  float ridge = smoothstep(0.45, 0.95, f);
-
-  vec3 bone = vec3(0.91, 0.89, 0.82);
-  vec3 signal = vec3(0.90, 1.0, 0.36);
-  vec3 base = vec3(0.035, 0.039, 0.031);
-  vec3 col = base;
-  col += bone * line * 0.20;
-  col += signal * line * ridge * 0.16;
-
-  vec2 vignetteUv = frag / uResolution - 0.5;
-  vignetteUv.x *= aspect;
-  float vignette = smoothstep(1.15, 0.2, length(vignetteUv));
-  col *= mix(0.42, 1.0, vignette);
-  col += (hash(frag + fract(uTime) * 17.0) - 0.5) * 0.028;
+  vec2 uv = (frag / uResolution - 0.5) * vec2(aspect, 1.0);
+  float phase = uTime * 0.68 * uAmp + uScroll * 1.2;
+  vec2 p = vec2(uv.x * 6.6, uv.y * 7.4);
+  vec2 pointer = vec2((uPointer.x / uResolution.x - 0.5) * aspect, 0.5 - uPointer.y / uResolution.y) * vec2(6.6, 7.4);
+  vec2 id = floor(p);
+  vec2 f = fract(p);
+  float swell = exp(-dot(p - pointer, p - pointer) * 0.38) * 0.9 * uAmp;
+  float h = clamp(cellWave(id, phase) + swell, 0.0, 1.0);
+  vec2 q = f - 0.5;
+  float gap = 0.15;
+  float inside = step(abs(q.x), 0.5 - gap) * step(abs(q.y), 0.5 - gap);
+  float front = step(q.y, -0.16 + (1.0 - h) * 0.1);
+  float side = step(0.2, q.x);
+  float top = inside * (1.0 - front);
+  float sideM = inside * front * side;
+  float frontM = inside * front * (1.0 - side);
+  vec3 iron = vec3(0.11, 0.105, 0.09);
+  vec3 col = bg;
+  col = mix(col, iron * (0.7 + h * 0.45), frontM);
+  col = mix(col, iron * (0.9 + h * 0.35), sideM);
+  col = mix(col, mix(iron * 1.2, bone * 0.42, h), top);
+  col += lime * top * smoothstep(0.78, 1.0, h) * 0.3;
+  vec2 vig = frag / uResolution - 0.5;
+  vig.x *= aspect;
+  col *= mix(0.5, 1.0, smoothstep(1.15, 0.2, length(vig)));
+  col += (hash(frag + fract(uTime) * 13.0) - 0.5) * 0.02;
   gl_FragColor = vec4(col, 1.0);
 }
 `;
