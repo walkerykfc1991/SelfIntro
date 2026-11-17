@@ -50,7 +50,7 @@ npm run build
 npm run sync
 ```
 
-The build workflow (`.github/workflows/pages.yml`) runs `npm ci`, `npm run build`, and `npm run sync`, then fails if the committed export does not match. That keeps the files Pages serves aligned with the source.
+The build workflow (`.github/workflows/pages.yml`) runs the production build, then checks that the committed `index.html` carries the same source stamp as the current source. Webpack chunk names are not compared, because those hashes differ between machines. Pages still serves the committed export, so run `npm run sync` and commit it after a build.
 
 ## Stack
 

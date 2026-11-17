@@ -24,6 +24,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm run sync
-      - name: Committed export matches this build
-        run: git diff --exit-code
+      - name: Published page matches the source
+        run: node scripts/check-stamp.mjs

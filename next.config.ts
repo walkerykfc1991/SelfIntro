@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import type { NextConfig } from "next";
 
 /**
@@ -6,6 +7,9 @@ import type { NextConfig } from "next";
  * both use it, so asset URLs match GitHub Pages.
  */
 const basePath = "/SelfIntro";
+const sourceStamp = execFileSync(process.execPath, ["scripts/source-stamp.mjs"], {
+  encoding: "utf8",
+}).trim();
 
 const nextConfig: NextConfig = {
   output: "export",
@@ -15,6 +19,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   generateBuildId: () => "walker-yip",
+  env: {
+    NEXT_PUBLIC_SOURCE_STAMP: sourceStamp,
+  },
 };
 
 export default nextConfig;

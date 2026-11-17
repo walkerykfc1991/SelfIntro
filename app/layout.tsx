@@ -46,6 +46,9 @@ export const metadata: Metadata = {
     title: documentTitle,
     description,
   },
+  other: {
+    "source-stamp": process.env.NEXT_PUBLIC_SOURCE_STAMP ?? "",
+  },
 };
 
 export const viewport: Viewport = {
