@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
-import { Atmosphere } from "@/components/atmosphere";
 import { Corners } from "@/components/corners";
 import { Cursor } from "@/components/cursor";
 import { Motion } from "@/components/motion";
@@ -77,7 +76,6 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <Atmosphere />
         <Cursor />
         <Motion />
         <Corners />
