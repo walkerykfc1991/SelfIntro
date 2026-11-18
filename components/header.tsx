@@ -2,6 +2,7 @@ import { name } from "@/lib/content";
 
 const links = [
   { href: "#summary", id: "summary", label: "Summary" },
+  { href: "#history", id: "history", label: "History" },
   { href: "#employment", id: "employment", label: "Employment" },
   { href: "#skills", id: "skills", label: "Skills" },
 ];

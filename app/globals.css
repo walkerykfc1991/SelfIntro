@@ -398,10 +398,155 @@ html.has-cursor * {
 }
 
 #summary,
+#history,
 #employment,
 #skills,
 .role {
   scroll-margin-top: 5.5rem;
+}
+
+.history-banner {
+  padding: 1.5rem 0 3.5rem;
+  border-top: 1px solid rgba(239, 236, 228, 0.1);
+  border-bottom: 1px solid rgba(239, 236, 228, 0.1);
+  background:
+    linear-gradient(90deg, rgba(9, 10, 8, 0.92), transparent 18%, transparent 82%, rgba(9, 10, 8, 0.92)),
+    linear-gradient(180deg, rgba(230, 255, 77, 0.035), transparent 55%);
+}
+
+.history-banner-inner,
+.history-banner-head {
+  width: min(1440px, calc(100% - (var(--gutter) * 2)));
+  margin-inline: auto;
+}
+
+.history-banner-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  margin-bottom: 1.35rem;
+}
+
+.history-banner h2 {
+  margin: 0;
+  color: var(--bone);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.history-rail {
+  position: relative;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 5%, #000 95%, transparent);
+}
+
+.history-static {
+  display: none;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.35rem var(--gutter) 0.85rem;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.history-static li {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.history-marquee {
+  display: block;
+  overflow: hidden;
+}
+
+.history-track {
+  display: flex;
+  width: max-content;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.35rem 0 0.85rem;
+  list-style: none;
+  animation: history-scroll 48s linear infinite;
+}
+
+.history-marquee:hover .history-track,
+.history-marquee:focus-within .history-track {
+  animation-play-state: paused;
+}
+
+.history-plate {
+  display: grid;
+  grid-template-rows: auto minmax(2.6rem, auto) auto;
+  align-items: center;
+  justify-items: start;
+  gap: 0.45rem;
+  min-width: min(72vw, 16.5rem);
+  min-height: 7.5rem;
+  padding: 1rem 1.2rem 1.05rem;
+  border: 1px solid rgba(239, 236, 228, 0.16);
+  background: rgba(9, 10, 8, 0.55);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.28s ease,
+    background-color 0.28s ease,
+    color 0.28s ease;
+}
+
+a.history-plate:hover,
+a.history-plate:focus-visible {
+  border-color: rgba(230, 255, 77, 0.55);
+  background: rgba(230, 255, 77, 0.06);
+}
+
+.history-kind,
+.history-note {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.history-kind {
+  color: var(--signal);
+}
+
+.history-note {
+  color: var(--quiet);
+}
+
+.history-wordmark {
+  color: var(--bone);
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 520;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.history-logo {
+  display: block;
+  width: auto;
+  max-width: 11rem;
+  height: 2.4rem;
+  object-fit: contain;
+  filter: grayscale(1) brightness(1.35) contrast(1.05);
+}
+
+@keyframes history-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .section {
@@ -916,6 +1061,18 @@ main:focus {
   .atmosphere {
     transition: none;
   }
+
+  .history-marquee {
+    display: none;
+  }
+
+  .history-static {
+    display: flex;
+  }
+
+  .history-rail {
+    mask-image: none;
+  }
 }
 
 @media print {
@@ -951,6 +1108,8 @@ main:focus {
   .summary-line,
   .career h2,
   .skills h2,
+  .history-banner h2,
+  .history-wordmark,
   .role h3,
   .role h4,
   .role strong,
@@ -958,6 +1117,21 @@ main:focus {
   .skill-panel h3,
   .brand {
     color: #111 !important;
+  }
+
+  .history-marquee {
+    display: none !important;
+  }
+
+  .history-static {
+    display: flex !important;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .history-plate {
+    border-color: #ccc !important;
+    background: transparent !important;
   }
 
   .summary-line,
