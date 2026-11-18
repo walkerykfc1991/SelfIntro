@@ -194,6 +194,10 @@ export type HistoryRef = {
    * When unset, the banner shows the wordmark until a logo is assigned.
    */
   logo?: string;
+  /** Optional screenshot path including the `/SelfIntro` basePath. */
+  screenshot?: string;
+  /** System description shown when the slide opens a detail panel. */
+  description?: string;
 };
 
 /** Horizontal history references. Logos are optional until assets are assigned. */
@@ -205,6 +209,10 @@ export const historyRefs: readonly HistoryRef[] = [
     href: "https://grandhillwines.com",
     external: true,
     note: "Web",
+    logo: "/SelfIntro/history/grand-hill-logo.jpg",
+    screenshot: "/SelfIntro/history/grand-hill-wines.webp",
+    description:
+      "Freelance web build for the winery’s public site — product storytelling and browsing for Grand Hill Wines.",
   },
   {
     id: "clinic-crm",
@@ -212,6 +220,10 @@ export const historyRefs: readonly HistoryRef[] = [
     kind: "employment",
     href: "#role-medifast",
     note: "Web",
+    logo: "/SelfIntro/history/medifast-logo.png",
+    screenshot: "/SelfIntro/history/clinic-crm.jpg",
+    description:
+      "Led the integration of a legacy ASP.NET/C# clinic system into a new Node.js/React CRM, re-implementing core operations so day-to-day clinic work could move off the old platform with feature parity. Analysed existing clinic workflows, data structures, and business rules, then rebuilt them as Node.js services and React interfaces — including create/view booking, search pickers, overseas pre-insurance presets, in-clinic operations boards, report centre, and medical-form integration with the external client-facing app.",
   },
   ...roles.map((role) => ({
     id: role.id,
@@ -219,6 +231,9 @@ export const historyRefs: readonly HistoryRef[] = [
     kind: "employment" as const,
     href: `#role-${role.id}`,
     note: role.dates,
+    ...(role.id === "medifast"
+      ? { logo: "/SelfIntro/history/medifast-logo.png" as const }
+      : {}),
   })),
 ];
 
