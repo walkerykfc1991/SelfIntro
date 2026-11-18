@@ -181,8 +181,43 @@ for (const skill of skills) {
   }
 }
 
+export type HistoryRef = {
+  id: string;
+  name: string;
+  kind: "employment" | "freelance";
+  href: string;
+  external?: boolean;
+  note?: string;
+  /**
+   * Optional logo URL path including the `/SelfIntro` basePath
+   * (for example `/SelfIntro/history/grand-hill.svg`).
+   * When unset, the banner shows the wordmark until a logo is assigned.
+   */
+  logo?: string;
+};
+
+/** Horizontal history references. Logos are optional until assets are assigned. */
+export const historyRefs: readonly HistoryRef[] = [
+  {
+    id: "grand-hill-wines",
+    name: "Grand Hill Wines",
+    kind: "freelance",
+    href: "https://grandhillwines.com",
+    external: true,
+    note: "Web",
+  },
+  ...roles.map((role) => ({
+    id: role.id,
+    name: role.company,
+    kind: "employment" as const,
+    href: `#role-${role.id}`,
+    note: role.dates,
+  })),
+];
+
 export const headings = {
   summary: "Professional Summary",
+  history: "History",
   employment: "Employment History",
   skills: "Skills",
 } as const;
