@@ -223,7 +223,7 @@ export const historyRefs: readonly HistoryRef[] = [
     logo: "/SelfIntro/history/medifast-logo.png",
     screenshot: "/SelfIntro/history/clinic-crm.jpg",
     description:
-      "Led the integration of a legacy ASP.NET/C# clinic system into a new Node.js/React CRM, re-implementing core operations so day-to-day clinic work could move off the old platform with feature parity. Analysed existing clinic workflows, data structures, and business rules, then rebuilt them as Node.js services and React interfaces — including create/view booking, search pickers, overseas pre-insurance presets, in-clinic operations boards, report centre, and medical-form integration with the external client-facing app.",
+      "Clinic system experience at MediFast — migrating a legacy ASP.NET/C# clinic platform into a Node.js and React CRM for day-to-day clinic work.",
   },
   ...roles.map((role) => ({
     id: role.id,

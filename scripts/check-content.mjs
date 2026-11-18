@@ -12,6 +12,7 @@ const required = [
   "Grand Hill Wines",
   "https://grandhillwines.com",
   "Clinic CRM",
+  "Clinic system experience at MediFast",
   "Freelance web build for the winery",
   "Visit site",
   "View employment",
